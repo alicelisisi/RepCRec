@@ -1,3 +1,5 @@
+package adb;
+
 import java.util.*;
 import java.io.*;
 
@@ -8,6 +10,6 @@ public class DataBase {
       System.out.println("Error: no valid input file");
       System.exit(1);
     }
-    db.run(args[0]);  
+    db.process(args[0]);  
    }
 }

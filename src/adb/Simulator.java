@@ -1,18 +1,20 @@
+package adb;
+
 import java.util.*;
 import java.io.*;
 
 
 
 public class Simulator {
-  static final int numOfVariable;
-  static final int numOfSite;
+  static int numOfVariable;
+  static int numOfSite;
   int timeStamp = 0;
   final List<Site> siteList;
   final TransactionManager tm;
-  private boolean versbose = true;
+  private boolean verbose = true;
   
   public Simulator(int numS, int numV) {
-    this.numOfSite = numsS;
+    this.numOfSite = numS;
     this.numOfVariable = numV;
     this.tm = new TransactionManager(this);
     this.siteList = new ArrayList<Site>();
@@ -39,9 +41,9 @@ public class Simulator {
   public void process(String fileName) {
     try {
       BufferedReader br = new BufferedReader(new FileReader(fileName));
-      printVersbose("Read input from " + fileName);
+      printVerbose("Read input from " + fileName);
       String line;
-      while ((line = br.readLine() != null)) {
+      while ((line = br.readLine())!= null) {
         timeStamp++;
         String[] events = line.split(";");
         for (String event : events) {
