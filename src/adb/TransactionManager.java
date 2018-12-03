@@ -75,7 +75,7 @@ public class TransactionManager {
       }
     }
 
-    /*Operation op = new Operation(OperationType.W, vId, val);
+    Operation op = new Operation(OperationType.W, vId, val);
     transactions.get(tId).addOperation(op);
     if (isDeadLock("?", tId)) {
       handleDeadLock(transactions.get(tId));
@@ -85,15 +85,13 @@ public class TransactionManager {
     } else {
       waitingList.add(tId);
       db.printVerbose(tId + " waits");
-    }*/
-
-    waitingList.add(tId);
-    db.printVerbose(tId + " waits");
+    }
 
   }
 
   private boolean handleSameTransaction(Site s, String vId, String tId, int val) {
     boolean result = true;
+    transactions.get(tId).addTouchedSite(s.siteId, db.timeStamp);
     if (s.lockTable.containsKey(vId) && !s.lockTable.get(vId).isEmpty()) {
       List<Lock> locks = s.lockTable.get(vId);
       Lock lastLock = locks.get(locks.size() - 1);
@@ -141,5 +139,198 @@ public class TransactionManager {
     }
     return false;
   }	
+
+  public void handleDeadLock(Transaction t) {
+    String id = t.tId;
+    db.printVerbose("dead lock detected!");
+    List<String> cycle = getCycle(tId);
+    Transaction toAbort = t;
+    int time = -1;
+    for (String id : cycle) {
+      Transaction current = transactions.get(id);
+      if (current.startTime > time) {
+        toAbort = current;
+        time = current.startTime;
+      }
+    }
+
+    System.out.println("abort " + toAbort.tId);
+    abortTransaction(toAbort.tId, true);
+  }
+
+  private List<String> getCycle(String start) {
+    List<String> cycle = new ArrayList<>();
+    List<String> result = new Arraylist<>();
+    dfs(start, cycle, res);
+    return res;
+  }
+
+  private void dfs(String current, List<String> cycle, List<String> res) {
+    if (waitForGraph.size() == 0 || !waitForGraph.containsKey(current)) {
+      return;
+    }
+
+    for (String tid : waitForGraph.get(current)) {
+      if (!cycle.containsKey(tid)) {
+        cycle.add(tid);
+        dfs(tid, cycle, res);
+        cycle.remove(tid);
+      } else {
+        res = new ArrayList<>(cycle);
+      }
+    }
+  }
+
+  private boolean isDeadLock(String tId, String start) {
+    if (tId.equals(start)) {
+      return true;
+    }
+    if (tId.equals("?")) {
+      tId = start;
+    }
+
+    if (!waitForGraph.containskey(tId) || waitForGraph.get(tId).isEmpty()) {
+      return false;
+    }
+
+    for (String next : waitForGraph.get(tId)) {
+      if (isDeadLock(next, start)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  public void abortTransaction(String abortId, boolean isAborted) {
+    Transaction target = transactions.get(abortId);
+
+    // Release all the locks
+    for (int sid : target.touchedSiteTime.keySet()) {
+      Site s = db.siteList.get(sid - 1);
+      s.releaseLocks(target);
+    }
+
+    //remove from waiting list
+    waitingList.remove(abortId);
+
+    //remove from waitFor Graph
+    for (String tid : waitForGraph.keySet()) {
+      for (String child : waitForGraph.get(tid)) {
+        if (target.tId.equals(child)) {
+          waitForGraph.get(tid).remove(child);
+          break;
+        }
+        
+      }
+    }
+    waitForGraph.remove(abortId);
+
+    //revert values
+
+    if (isAborted) {
+      abortList.add(abortId);
+      for (int sid : target.touchedSiteTime.keySet()) {
+        Site s = db.siteList.get(sid - 1);
+        for (String dv : target.changedV) {
+          Variable v = s.getVariable(dv);
+          if (v != null) {
+            v.revert();
+          }
+        }
+      }
+    }
+
+    runNextWaiting();
+  }
+
+  public void runNextWaiting() {
+    if (waitingList.isEmpty()) {
+      return;
+    }
+    List<String> temp = new ArrayList<>();
+    temp.addAll(waitingList);
+    for (String nextTid : temp) {
+      if (waitForGraph.containsKey(nextTid) && !waitForGraph.get(nextTid).isEmpty()) {
+        db.printVerbose(nextTid + "still waits!");
+        continue;
+      }
+      waitingList.remove(nextTid);
+      String nextVid = transactions.get(nextTid).pendingOp.variableId;
+      if (transactions.get(nextTid).pendingOp.type == OperationType.R) {
+        System.out.prinln("to be implemented");
+      } else if (transactions.get(nextTid).pendingOp.type == OperationType.W) {
+        int nextVal = transactions.get(nextTid).pendingOp.readValue();
+        write(nextTid, nextVid, nextVal); 
+      } else {
+        commitTransaction(nextTid, db.timeStamp);
+      }
+    }
+  }
+
+  public void commitTransaction(String tId, int timeStamp) {
+    if (abortList.contains(tId)) {
+      System.out.println("Failed: " + tId + " was aborted");
+      return;
+    }
+
+    Transaction target = transactions.get(tId);
+    boolean canCommit = true;
+    if (waitingList.contains(tId) && isDeadLock("?", tId)) {
+      handleDeadLock(target);
+    }
+
+    if (target.readOnly) {
+      for (int sid : target.touchedSiteTime.keySet()) {
+        Site s = db.siteList.get(sid - 1);
+        if (s.isFailed()) {
+          canCommit = false;
+          break;
+        }
+      }
+
+      if (canCommit) {
+        System.out.prinln("commit " + tId);
+      } else {
+        Operation op = new Operation(OperationType.C);
+        target.addOperation(op);
+        waitingList.add(tId);
+      }
+      return;
+    }
+
+    for (int sid : target.touchedSiteTime.keySet()) {
+      Site s = db.siteList.get(sid - 1);
+      int firstTouch = target.touchedSiteTime.get(sid);
+      if (firstTouch <= s.failedTime) {
+        canCommit = false;
+        break;
+      }
+    }
+
+    for (int sid : target.touchedSiteTime.keySet()) {
+      Site s = db.siteList.get(sid - 1);
+      for (String dv : target.changedV) {
+        Variable v = s.getVariable(dv);
+        if (v != null) {
+          if (canCommit) {
+            v.commit(timeStamp);
+          } else {
+            v.revert();
+          }
+        }
+      }
+    }
+
+    if (!canCommit) {
+      System.out.println("abort " + tId);
+    } else {
+      System.out.println("commit " + tId);
+    }
+
+    abortTransaction(tId, !canCommit);
+
+
+  }
 	
 }

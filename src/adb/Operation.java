@@ -12,6 +12,25 @@ public class Operation {
     variableId = null;
   }
 
+  public Operation(OperationType type, String variable) {
+    type = type;
+    variableId = variable;
+  }
+
+  public Operation(Operation type, String variable, int value) {
+    if (type != OperationType.W) {
+      throw new IllegalArgumentException("Error: operation should be WRITE");
+    }
+
+    type = type;
+    variableId = variable;
+    value = value;
+  }
+
+  public int readValue() {
+    return value;
+  }
+
 
 	
 }

@@ -75,6 +75,11 @@ public class Simulator {
       String vId = line.substring(first + 1, second);
       int val = Integer.parseInt(line.substring(second + 1, line.indexOf(")")));
       tm.write(tId, vId, val);
+    } else if (line.startsWith("end")) {
+      String tId = line.substring(line.indexOf("(") + 1, line.indexOf(")"));
+      tm.commitTransaction(tId, timeStamp);
+    } else if (line.startsWith("dump")) {
+      dump();
     }
   }
   
