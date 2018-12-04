@@ -336,5 +336,108 @@ public class TransactionManager {
 
 
   }
+
+  public void read(String tId, String vId) {
+    if (abortList.contains(tId)) {
+      System.out.println("Failed to read " + vId + " because " + tId + " is aborted");
+      return;
+    }
+
+    if (waitingList.contains(tId)) {
+      db.printVerbose("Failed: " + tId + " is waiting");
+      return;
+    }
+    
+
+    Transaction t = transactions.get(tId);
+    if (t == null) {
+      System.out.println("Error: " + tId + " did not begin");
+      return;
+    }
+
+    Site s = selectSite(vId);
+    if (s == null) {
+      db.printVerbose("No available site for accessing " + vId);
+      Operation op = new Operation(Operation.R, vId);
+      t.addOperation(op);
+      waitingList.add(tId);
+      return;
+    }
+
+    if (t.readOnly) {
+      int value = s.readVariable(vId, t.startTime);
+      System.out.println(tId + " reads " + vId + " at site " + s.siteId + ": " + value);
+      t.addTouchedSite(s.siteId, db.timeStamp);
+      return;
+    }
+
+    regularRead(tId, vId, s);
+
+  }
+
+  public void regularRead(String tId, String vId, Site s) {
+    if (!s.variableList.containsKey(vId)) {
+      throw new IllegalArgumentException("Error: " + vId + " not found in the site " + s.siteId);
+    }
+
+    Transaction t = transactions.get(tId);
+    t.addTouchedSite(s.siteId, db.timeStamp);
+    if (!s.lockTable.containsKey(vId) || s.lockTable.get(vId).isEmpty()) {
+      executeRead(tId,vId, s);
+    }
+
+    for (Lock l : s.lockTable.get(vId)) {
+      if (l.transactionId.equals(tId)) {
+        executeRead(tId,vId, s); 
+      } else if (l.type == LockType.WL) {
+        if (!waitForGraph.containsKey(tId)) {
+          waitForGraph.put(tId, new HashSet<>());
+        }
+        waitForGraph.get(tId).add(l);
+        readHold(tId, vId, s);
+      }
+    }
+  }
+
+  public void readHold(String tId, String vId, Site s) {
+    Transaction t = transactions.get(tId);
+    Operation op = new Operation(OperationType.R, vId);
+    t.addOperation(op);
+    if (isDeadLock("?", tId)) {
+      handleDeadLock(t);
+      if (!abortList.contains(tId)) {
+        read(tId, vId);
+      }
+    } else {
+      waitingList.add(tId);
+      db.printVerbose(tId + " waits");
+    }
+  }
+
+  public void executeRead(String tId, String vId, Site s) {
+    int value = s.readVariable(vId, false);
+    s.lockTable.get(vId).add(new Lock(LockType.RL, tId, vId));
+    System.out.println(tId + " reads " + vId + " at site " + s.siteId + ": " + value);
+  }
+
+  public Site selectSite(String vId) {
+    int val = Integer.parseInt(vId.substring(1))
+    if (isOddVariable(vId)) {
+      Site s = siteList.get(val % numOfSite);
+      if (s.isFailed) {
+        return null;
+      }
+      return s;
+    }
+
+    for (Site s : siteList) {
+      if (!s.isFailed && s.getVariable(vId).canRead()) {
+        return s;
+      }
+    }
+
+    System.out.println("No available site for accessing " + vId);
+    return null;
+  }
 	
 }

@@ -68,6 +68,11 @@ public class Site {
     return v.read();
   }
 
+  public int readVariable(String vId, int timeStamp) {
+    Variable v = getVariable(vId);
+    return v.readOnly(timeStamp);
+  }
+
 
 	
 }
