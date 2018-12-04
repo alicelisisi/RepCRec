@@ -4,19 +4,24 @@ import java.util.*;
 
 
 public class TransactionManager {
-  private Map<String, Transaction> transactions;
-  private List<String> waitingList;
-  private Set<String> abortList;
-  private final Simulator db;
-  private Map<String, Set<String>> waitForGraph;
+  public Map<String, Transaction> transactions;
+  public List<String> waitingList;
+  public Set<String> abortList;
+  public static Simulator db;
+  public Map<String, Set<String>> waitForGraph;
 
-
+ 
   public TransactionManager(Simulator db) {
     this.db = db;
+    this.transactions = new HashMap<>();
+    this.waitingList = new ArrayList<>();
+    this.abortList = new HashSet<>();
+    this.waitForGraph = new HashMap<>();
   }
 
   public void begin(String tId, int timeStamp, boolean readOnly) {
   	Transaction t = new Transaction(tId, timeStamp, readOnly);
+    System.out.println(transactions.containsKey(tId));
   	if (transactions.containsKey(tId)) {
   	  System.out.println("Error: " + tId + " has already begun.");
   	  return;
@@ -143,11 +148,11 @@ public class TransactionManager {
   public void handleDeadLock(Transaction t) {
     String id = t.tId;
     db.printVerbose("dead lock detected!");
-    List<String> cycle = getCycle(tId);
+    List<String> cycle = getCycle(id);
     Transaction toAbort = t;
     int time = -1;
-    for (String id : cycle) {
-      Transaction current = transactions.get(id);
+    for (String i : cycle) {
+      Transaction current = transactions.get(i);
       if (current.startTime > time) {
         toAbort = current;
         time = current.startTime;
@@ -160,9 +165,9 @@ public class TransactionManager {
 
   private List<String> getCycle(String start) {
     List<String> cycle = new ArrayList<>();
-    List<String> result = new Arraylist<>();
-    dfs(start, cycle, res);
-    return res;
+    List<String> result = new ArrayList<>();
+    dfs(start, cycle, result);
+    return result;
   }
 
   private void dfs(String current, List<String> cycle, List<String> res) {
@@ -171,7 +176,7 @@ public class TransactionManager {
     }
 
     for (String tid : waitForGraph.get(current)) {
-      if (!cycle.containsKey(tid)) {
+      if (!cycle.contains(tid)) {
         cycle.add(tid);
         dfs(tid, cycle, res);
         cycle.remove(tid);
@@ -189,7 +194,7 @@ public class TransactionManager {
       tId = start;
     }
 
-    if (!waitForGraph.containskey(tId) || waitForGraph.get(tId).isEmpty()) {
+    if (!waitForGraph.containsKey(tId) || waitForGraph.get(tId).isEmpty()) {
       return false;
     }
 
@@ -258,7 +263,7 @@ public class TransactionManager {
       waitingList.remove(nextTid);
       String nextVid = transactions.get(nextTid).pendingOp.variableId;
       if (transactions.get(nextTid).pendingOp.type == OperationType.R) {
-        System.out.prinln("to be implemented");
+        System.out.println("to be implemented");
       } else if (transactions.get(nextTid).pendingOp.type == OperationType.W) {
         int nextVal = transactions.get(nextTid).pendingOp.readValue();
         write(nextTid, nextVid, nextVal); 
@@ -283,14 +288,14 @@ public class TransactionManager {
     if (target.readOnly) {
       for (int sid : target.touchedSiteTime.keySet()) {
         Site s = db.siteList.get(sid - 1);
-        if (s.isFailed()) {
+        if (s.isFailed) {
           canCommit = false;
           break;
         }
       }
 
       if (canCommit) {
-        System.out.prinln("commit " + tId);
+        System.out.println("commit " + tId);
       } else {
         Operation op = new Operation(OperationType.C);
         target.addOperation(op);

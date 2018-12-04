@@ -4,10 +4,10 @@ import java.util.*;
 import java.io.*;
 
 public class Site {
-  final int siteId;
-  final Map<String, Variable> variableList;
+  public int siteId;
+  public Map<String, Variable> variableList;
   public boolean isFailed;
-  final Map<String, List<Lock>> lockTable;
+  public Map<String, List<Lock>> lockTable;
   public int failedTime;
   
   
@@ -47,9 +47,9 @@ public class Site {
 
   public void releaseLocks(Transaction t) {
     for (String var : lockTable.keySet()) {
-      for (Lock l : lockTable.get(var) {
+      for (Lock l : lockTable.get(var)){
         if (l.transactionId.equals(t.tId)) {
-          lockTable.get(var).remove(lock);
+          lockTable.get(var).remove(l);
           break;
         }
       }
@@ -63,5 +63,17 @@ public class Site {
 
     return variableList.get(id);
   }
+
+  public int readVariable(String vId, boolean committed) {
+    Variable v = getVariable(vId);
+
+    if (committed) {
+      return v.readLastCommitted();
+    }
+
+    return v.read();
+  }
+
+
 	
 }

@@ -6,12 +6,12 @@ import java.io.*;
 
 
 public class Simulator {
-  static int numOfVariable;
-  static int numOfSite;
-  int timeStamp = 0;
-  final List<Site> siteList;
-  final TransactionManager tm;
-  private boolean verbose = true;
+  public static int numOfVariable;
+  public static int numOfSite;
+  public int timeStamp = 0;
+  public List<Site> siteList;
+  public static TransactionManager tm;
+  public boolean verbose = true;
   
   public Simulator(int numS, int numV) {
     this.numOfSite = numS;
@@ -44,21 +44,18 @@ public class Simulator {
       printVerbose("Read input from " + fileName);
       String line;
       while ((line = br.readLine())!= null) {
-        timeStamp++;
-        String[] events = line.split(";");
-        for (String event : events) {
-          if (event == null || event.trim().isEmpty() || event.startsWith("//")) {
-            continue;
-          }
-          if (event.contains("//")) {
-            event = event.substring(0, event.indexOf("//"));
-          }
-          process(event);
+        //System.out.println(line);
+        if (line.startsWith("//") || line.equals("") ) {
+          continue;
         }
+        timeStamp++;
+
+        runCommand(line); 
+
       }
       br.close();
     } catch (Exception e) {
-      System.out.println("Error: " + e.getMessage());
+      System.out.println("Error: " + timeStamp );
     }  
   }
   
@@ -67,6 +64,9 @@ public class Simulator {
     printVerbose(line);
     if (line.startsWith("begin")) {
       String tId = line.substring(line.indexOf("(") + 1, line.indexOf(")"));
+      printVerbose(" TiD " + tId);
+      System.out.println(timeStamp);
+      System.out.println(line.startsWith("beginRO"));
       tm.begin(tId, timeStamp, line.startsWith("beginRO"));
     } else if (line.startsWith("W")) {
       int first = line.indexOf(",");
@@ -87,6 +87,63 @@ public class Simulator {
     if (verbose) {
       System.out.println("# " + message); 
     }
+  }
+
+  public void dump() {
+    for (int i = 1; i <= numOfVariable; i++) {
+      showVariable("x" + i);
+    }
+  }
+
+  public void showVariable(String vId) {
+    if (isOddVariable(vId)) {
+      Site s = getSite(vId);
+      int value = s.readVariable(vId, true);
+      System.out.println(vId + ": " + value + " at site " + s.siteId);
+    } else {
+      showEvenVariable(vId);
+    }
+
+  }
+
+  public void showEvenVariable(String vId) {
+    Map<Integer, List<Integer>> map = new HashMap<>();
+    for (Site s : siteList) {
+      int value = s.readVariable(vId, true);
+      if (!map.containsKey(value)) {
+        map.put(value, new ArrayList<>());
+      }
+      map.get(value).add(s.siteId);
+    }
+
+    StringBuffer sb;
+    for (int v : map.keySet()) {
+      if (map.size() == 1) {
+        System.out.println(vId + ": " + v + " at all sites");
+      } else {
+        sb = new StringBuffer(vId + ": ");
+        sb.append(v + " at site ");
+        for (int s : map.get(v)) {
+          sb.append(s + " ");
+        }
+        System.out.println(sb.toString().trim());
+      }
+    }
+  }
+
+  public Site getSite(String vId) {
+    int v = Integer.valueOf(vId.substring(1));
+    Site s = siteList.get(v - 1);
+    return s;
+
+  }
+
+  public boolean isOddVariable(String vId) {
+    int v = Integer.valueOf(vId.substring(1));
+    if (v % 2 == 1) {
+      return true;
+    }
+    return false;  
   }
   
   

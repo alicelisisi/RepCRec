@@ -45,10 +45,10 @@ public class Variable {
   }
 
   public void revert() {
-    value = readLastCommited();
+    value = readLastCommitted();
   }
 
-  public int readLastCommited() {
+  public int readLastCommitted() {
     return lastCommitted;
   }
 

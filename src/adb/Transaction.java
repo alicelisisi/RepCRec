@@ -3,20 +3,21 @@ package adb;
 import java.util.*;
 
 public class Transaction {
-  final String tId;
-  final int startTime;
-  final boolean readOnly;
-  final List<String> changedV;
-  Operation pendingOp;
-  final Map<Integer, Integer> touchSiteTime;
+  public String tId;
+  public int startTime;
+  public boolean readOnly;
+  public List<String> changedV;
+  public Operation pendingOp;
+  public Map<Integer, Integer> touchedSiteTime;
 
   public Transaction(String id, int timeStamp, boolean readOnly) {
+    
     this.tId = id;
     this.startTime = timeStamp;
     this.readOnly = readOnly;
     this.changedV = new ArrayList<>();
     this.pendingOp = null;
-    this.touchSiteTime = new HashMap<>();
+    this.touchedSiteTime = new HashMap<>();
   }
 
   public void addOperation(Operation op) {
@@ -24,8 +25,8 @@ public class Transaction {
   }
 
   public void addTouchedSite(int id, int time) {
-    if (!touchSiteTime.containsKey(id)) {
-      touchSiteTime.put(id, time);
+    if (!touchedSiteTime.containsKey(id)) {
+      touchedSiteTime.put(id, time);
     }
   }
 }
