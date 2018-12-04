@@ -9,7 +9,7 @@ public class Simulator {
   public static int numOfVariable;
   public static int numOfSite;
   public int timeStamp = 0;
-  public List<Site> siteList;
+  public static List<Site> siteList;
   public static TransactionManager tm;
   public boolean verbose = true;
   
@@ -64,9 +64,6 @@ public class Simulator {
     printVerbose(line);
     if (line.startsWith("begin")) {
       String tId = line.substring(line.indexOf("(") + 1, line.indexOf(")"));
-      printVerbose(" TiD " + tId);
-      System.out.println(timeStamp);
-      System.out.println(line.startsWith("beginRO"));
       tm.begin(tId, timeStamp, line.startsWith("beginRO"));
     } else if (line.startsWith("W")) {
       int first = line.indexOf(",");
@@ -96,6 +93,7 @@ public class Simulator {
   }
 
   public void showVariable(String vId) {
+    
     if (isOddVariable(vId)) {
       Site s = getSite(vId);
       int value = s.readVariable(vId, true);
@@ -133,7 +131,7 @@ public class Simulator {
 
   public Site getSite(String vId) {
     int v = Integer.valueOf(vId.substring(1));
-    Site s = siteList.get(v - 1);
+    Site s = siteList.get(v % numOfSite);
     return s;
 
   }

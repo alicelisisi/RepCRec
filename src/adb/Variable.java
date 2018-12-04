@@ -4,7 +4,7 @@ import java.util.*;
 
 
 public class Variable {
-  public final String vId;
+  public String vId;
   public int value;
   public int lastCommitted;
   public Map<Integer, Integer> commits = new HashMap<>();

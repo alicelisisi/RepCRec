@@ -21,7 +21,6 @@ public class TransactionManager {
 
   public void begin(String tId, int timeStamp, boolean readOnly) {
   	Transaction t = new Transaction(tId, timeStamp, readOnly);
-    System.out.println(transactions.containsKey(tId));
   	if (transactions.containsKey(tId)) {
   	  System.out.println("Error: " + tId + " has already begun.");
   	  return;

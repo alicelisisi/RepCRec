@@ -11,12 +11,6 @@ public class Site {
   public int failedTime;
   
   
-  
-  
-  
-  
-  
-  
   public Site(int id) {
     this.siteId = id;
     this.variableList = new HashMap<>();
@@ -66,7 +60,7 @@ public class Site {
 
   public int readVariable(String vId, boolean committed) {
     Variable v = getVariable(vId);
-
+    
     if (committed) {
       return v.readLastCommitted();
     }
