@@ -76,7 +76,27 @@ public class Simulator {
       String tId = line.substring(line.indexOf("(") + 1, line.indexOf(")"));
       tm.commitTransaction(tId, timeStamp);
     } else if (line.startsWith("dump")) {
-      dump();
+      if (line.contains("()")) {
+        dump();
+      } else if (line.contains("x")) {
+        String vId = line.substring(line.indexOf("x") + 1, line.indexOf(")"));
+        showVariable(vId);
+      } else {
+        String sId = line.substring(line.indexOf("(") + 1, line.indexOf(")"));
+        dumpSite(Integer.parseInt(sId));
+      }
+      
+    } else if (line.startsWith("fail")) {
+      int sId = Integer.parseInt(line.substring(line.indexOf("(") + 1, line.indexOf(")")));
+      failSite(sId, timeStamp);
+    } else if (line.startsWith("recover")) {
+      int sId = Integer.parseInt(line.substring(line.indexOf("(") + 1, line.indexOf(")")));
+      recoverSite(sId);  
+    } else if (line.startsWith("R")) {
+      int split = line.indexOf(",");
+      String tId = line.substring(line.indexOf("(") + 1, split);
+      String vId = line.substring(split + 1, line.indexOf(")"));
+      tm.read(tId, vId);
     }
   }
   
@@ -90,6 +110,44 @@ public class Simulator {
     for (int i = 1; i <= numOfVariable; i++) {
       showVariable("x" + i);
     }
+  }
+
+  public void dumpSite(int sId) {
+    Site s = siteList.get(sId - 1);
+    StringBuilder sb = new StringBuilder("Site " + sId + ":\n");
+    List<String> vIds = s.getAllVariableIds();
+    for (String id : vIds) {
+      int value = s.readVariable(id, true);
+      sb.append(id + ": " + value  + "\n");
+    }
+
+    System.out.println(sb.toString());
+  }
+
+  public void failSite(int sId, int timeStamp) {
+    System.out.println("site " + sId + " fails");
+
+    Site s = siteList.get(sId - 1);
+    Set<String> set = new HashSet<>();
+    for (Map.Entry<String, List<Lock>> locks : s.lockTable.entrySet()) {
+      for (Lock l : locks.getValue()) {
+        set.add(l.transactionId);
+      }
+    }
+
+    for (String id : set) {
+      System.out.println("abort " + id + " because site " + sId + " fails");
+      tm.abortTransaction(id, true);
+    }
+
+    s.fail(timeStamp);
+  }
+
+  public void recoverSite(int sId) {
+    Site s = siteList.get(sId - 1);
+    s.recover();
+    System.out.println("site " + sId + " recovers");
+    tm.runNextWaiting();
   }
 
   public void showVariable(String vId) {

@@ -80,4 +80,8 @@ public class Variable {
   	return value;
   }
 
+  public void blockRead() {
+    canRead = false;
+  }
+
 }

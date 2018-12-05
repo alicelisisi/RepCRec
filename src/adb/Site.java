@@ -73,6 +73,38 @@ public class Site {
     return v.readOnly(timeStamp);
   }
 
+  public List<String> getAllVariableIds() {
+    List<String> result = new ArrayList<>();
+    for (String v : variableList.keySet()) {
+      result.add(v);
+    }
+    Collections.sort(result, new Comparator<String>() {
+      @Override
+      public int compare(String v1, String v2) {
+        return Integer.parseInt(v1) - Integer.parseInt(v2);
+      }
+
+    });
+    return result;
+  }
+
+  public void fail(int timeStamp) {
+    isFailed = true;
+    failedTime = failedTime;
+    lockTable.clear();
+  }
+
+  public void recover() {
+    isFailed = false; 
+    for (Map.Entry<String, Variable> e : variableList.entrySet()) {
+      String vId = e.getKey().substring(1);
+      int id = Integer.valueOf(vId);
+      if (id % 2 == 0) {
+        e.getValue().blockRead();
+      }
+    }
+  }
+
 
 	
 }

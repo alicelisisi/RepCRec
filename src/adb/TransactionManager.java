@@ -262,7 +262,7 @@ public class TransactionManager {
       waitingList.remove(nextTid);
       String nextVid = transactions.get(nextTid).pendingOp.variableId;
       if (transactions.get(nextTid).pendingOp.type == OperationType.R) {
-        System.out.println("to be implemented");
+        read(nextTid, nextVid);
       } else if (transactions.get(nextTid).pendingOp.type == OperationType.W) {
         int nextVal = transactions.get(nextTid).pendingOp.readValue();
         write(nextTid, nextVid, nextVal); 
@@ -338,6 +338,7 @@ public class TransactionManager {
   }
 
   public void read(String tId, String vId) {
+
     if (abortList.contains(tId)) {
       System.out.println("Failed to read " + vId + " because " + tId + " is aborted");
       return;
@@ -358,7 +359,7 @@ public class TransactionManager {
     Site s = selectSite(vId);
     if (s == null) {
       db.printVerbose("No available site for accessing " + vId);
-      Operation op = new Operation(Operation.R, vId);
+      Operation op = new Operation(OperationType.R, vId);
       t.addOperation(op);
       waitingList.add(tId);
       return;
@@ -384,18 +385,26 @@ public class TransactionManager {
     t.addTouchedSite(s.siteId, db.timeStamp);
     if (!s.lockTable.containsKey(vId) || s.lockTable.get(vId).isEmpty()) {
       executeRead(tId,vId, s);
+      return;
     }
+
+    boolean allRead = true;
 
     for (Lock l : s.lockTable.get(vId)) {
       if (l.transactionId.equals(tId)) {
         executeRead(tId,vId, s); 
       } else if (l.type == LockType.WL) {
+        allRead = false;
         if (!waitForGraph.containsKey(tId)) {
           waitForGraph.put(tId, new HashSet<>());
         }
-        waitForGraph.get(tId).add(l);
+        waitForGraph.get(tId).add(l.transactionId);
         readHold(tId, vId, s);
       }
+    }
+
+    if (allRead) {
+      executeRead(tId,vId, s);  
     }
   }
 
@@ -416,22 +425,25 @@ public class TransactionManager {
 
   public void executeRead(String tId, String vId, Site s) {
     int value = s.readVariable(vId, false);
+    if (!s.lockTable.containsKey(vId)) {
+      s.lockTable.put(vId, new ArrayList<>());
+    }
     s.lockTable.get(vId).add(new Lock(LockType.RL, tId, vId));
     System.out.println(tId + " reads " + vId + " at site " + s.siteId + ": " + value);
   }
 
   public Site selectSite(String vId) {
-    int val = Integer.parseInt(vId.substring(1))
+    int val = Integer.parseInt(vId.substring(1));
     if (isOddVariable(vId)) {
-      Site s = siteList.get(val % numOfSite);
+      Site s = db.siteList.get(val % db.numOfSite);
       if (s.isFailed) {
         return null;
       }
       return s;
     }
 
-    for (Site s : siteList) {
-      if (!s.isFailed && s.getVariable(vId).canRead()) {
+    for (Site s : db.siteList) {
+      if (!s.isFailed && s.getVariable(vId).canRead) {
         return s;
       }
     }
