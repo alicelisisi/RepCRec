@@ -31,7 +31,7 @@ public class TransactionManager {
 
   public void write(String tId, String vId, int val) {
     if (abortList.contains(tId)) {
-      System.out.println("Failed to read " + vId + " beacuse " + tId + " is aborted");
+      System.out.println("Failed to write " + vId + " beacuse " + tId + " is aborted");
       return;
     }
 
@@ -87,7 +87,13 @@ public class TransactionManager {
         write(tId, vId, val);
       }
     } else {
+      if (!s.lockTable.containsKey(vId)) {
+        s.lockTable.put(vId, new ArrayList<>());
+      }
+      s.lockTable.get(vId).add(new Lock(LockType.WL, tId, vId));
       waitingList.add(tId);
+      Variable var = s.variableList.get(vId);
+      var.addLocks(tId);
       db.printVerbose(tId + " waits");
     }
 
@@ -101,8 +107,13 @@ public class TransactionManager {
       Lock lastLock = locks.get(locks.size() - 1);
       if (lastLock.transactionId.equals(tId)) {
         if (lastLock.type.equals(LockType.RL)) {
-          s.lockTable.get(vId).remove(locks.size() - 1);
-          s.lockTable.get(vId).add(new Lock(LockType.WL, tId, vId));
+          if (s.variableList.get(vId).requireLocks.size() == 0) {
+            s.lockTable.get(vId).remove(locks.size() - 1);
+            s.lockTable.get(vId).add(new Lock(LockType.WL, tId, vId));
+          } else {
+            writeHold(tId, vId, val, s);
+          }
+          
         }
       } else {
         result = false;
@@ -256,7 +267,7 @@ public class TransactionManager {
     temp.addAll(waitingList);
     for (String nextTid : temp) {
       if (waitForGraph.containsKey(nextTid) && !waitForGraph.get(nextTid).isEmpty()) {
-        db.printVerbose(nextTid + "still waits!");
+        db.printVerbose(nextTid + " still waits!");
         continue;
       }
       waitingList.remove(nextTid);
@@ -357,6 +368,10 @@ public class TransactionManager {
     }
 
     Site s = selectSite(vId);
+    if (!s.canRead) {
+      db.printVerbose("can't read " + vId + " at site " + s.siteId);
+      return;
+    }
     if (s == null) {
       db.printVerbose("No available site for accessing " + vId);
       Operation op = new Operation(OperationType.R, vId);
@@ -440,6 +455,19 @@ public class TransactionManager {
         return null;
       }
       return s;
+    }
+    
+    int count = 0;
+    Site res = db.siteList.get(0);
+    for (int i = 0; i < db.numOfSite; i++) {
+      if (!db.siteList.get(i).isFailed) {
+        res = db.siteList.get(i);
+        count++;
+      }
+    }
+  
+    if (count == 1) {
+      return res;
     }
 
     for (Site s : db.siteList) {

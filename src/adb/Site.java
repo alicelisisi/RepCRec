@@ -9,6 +9,7 @@ public class Site {
   public boolean isFailed;
   public Map<String, List<Lock>> lockTable;
   public int failedTime;
+  public boolean canRead;
   
   
   public Site(int id) {
@@ -17,6 +18,7 @@ public class Site {
     this.isFailed = false;
     this.lockTable = new HashMap<>();
     this.failedTime = -1;
+    this.canRead = true;
   }
   
   public void addVariable(Variable v) {
@@ -96,6 +98,7 @@ public class Site {
 
   public void recover() {
     isFailed = false; 
+    canRead = false;
     for (Map.Entry<String, Variable> e : variableList.entrySet()) {
       String vId = e.getKey().substring(1);
       int id = Integer.valueOf(vId);

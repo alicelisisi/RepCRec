@@ -9,6 +9,9 @@ public class Variable {
   public int lastCommitted;
   public Map<Integer, Integer> commits = new HashMap<>();
   public boolean canRead;
+  public List<String> requireLocks;
+    
+
 
 
   public Variable (String id) {
@@ -17,6 +20,11 @@ public class Variable {
     this.commits.put(0, value);
     this.lastCommitted = value;
     this.canRead = true;
+    this.requireLocks = new ArrayList<String>();
+  }
+
+  public void addLocks(String tId) {
+    this.requireLocks.add(tId);
   }
 
   public int readOnly(int timeStamp) {
